@@ -548,6 +548,7 @@ impl Default for Settings {
             ("Fahrenheit".to_owned(), fahrenheit_palette()),
             ("The Matrix".to_owned(), the_matrix_palette()),
             ("Sequoia".to_owned(), sequoia_palette()),
+            ("Aurora".to_owned(), aurora_palette()),
         ];
         let keybinds_slots = vec![
             ("Default".to_owned(), tetro_default_keybinds()),

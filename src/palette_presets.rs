@@ -255,3 +255,24 @@ pub fn the_matrix_palette() -> Palette {
     ];
     HashMap::from(COLORS_THE_MATRIX)
 }
+
+pub fn aurora_palette() -> Palette {
+    // Perceptually uniform palette: OKLCH L≈0.76, C≈0.155, hues at 51.4° intervals.
+    // Equal lightness ensures all pieces have the same visual weight on screen.
+    // Equal chroma ensures consistent vibrance across all piece colors.
+    #[rustfmt::skip]
+    const COLORS_AURORA: [(u8, Color); 7 + 3] = [
+        (  1, Color::Rgb{r:223,g:176,b: 48}), // #DFB030  OKLCH(0.76, 0.155, 86°)
+        (  2, Color::Rgb{r:  0,g:191,b:179}), // #00BFB3  OKLCH(0.76, 0.155, 188°)
+        (  3, Color::Rgb{r: 94,g:188,b: 68}), // #5EBC44  OKLCH(0.76, 0.155, 140°)
+        (  4, Color::Rgb{r:232,g:101,b:106}), // #E8656A  OKLCH(0.76, 0.155, 17°)
+        (  5, Color::Rgb{r:175,g:126,b:228}), // #AF7EE4  OKLCH(0.76, 0.155, 292°)
+        (  6, Color::Rgb{r:238,g:141,b: 60}), // #EE8D3C  OKLCH(0.76, 0.155, 52°)
+        (  7, Color::Rgb{r: 64,g:157,b:232}), // #409DE8  OKLCH(0.76, 0.155, 240°)
+
+        (253, Color::Rgb{r: 10,g: 14,b: 24}), // #0A0E18
+        (254, Color::Rgb{r:106,g:112,b:136}), // #6A7088
+        (255, Color::Rgb{r:224,g:228,b:240}), // #E0E4F0
+    ];
+    HashMap::from(COLORS_AURORA)
+}
