@@ -9,7 +9,7 @@ use crossterm::{
     event::{self, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     style::Print,
     terminal::{self, Clear, ClearType},
-    ExecutableCommand,
+    ExecutableCommand, QueueableCommand,
 };
 use falling_tetromino_engine::{
     Button, ButtonChange, Feedback, Game, GameOver, InGameTime, UpdateGameError,
@@ -82,16 +82,35 @@ impl<T: Write> Application<T> {
             true,
         )?;
 
-        // Explicitly tells the renderer if entire screen needs to be re-drawn once.
-        let mut rerender_entire_view = false;
-
         // How much time passes between each refresh.
         let frame_interval = Duration::from_secs_f64(self.settings.graphics().game_fps.recip());
+
+        // Countdown animation before game starts.
+        {
+            let (x_main, y_main) = Self::fetch_main_xy();
+            let cx = x_main + Self::W_MAIN / 2;
+            let cy = y_main + Self::H_MAIN / 2;
+            for label in ["3", "2", "1", "GO!"] {
+                self.term
+                    .queue(Clear(ClearType::All))?
+                    .queue(MoveTo(
+                        cx.saturating_sub(u16::try_from(label.len()).unwrap() / 2),
+                        cy,
+                    ))?
+                    .queue(Print(label))?;
+                self.term.flush()?;
+                std::thread::sleep(Duration::from_millis(600));
+            }
+        }
+
+        // Explicitly tells the renderer if entire screen needs to be re-drawn once.
+        // Starts as `true` because the countdown animation cleared the screen.
+        let mut rerender_entire_view = true;
 
         // Time of the game when we enter the game loop.
         let ingametime_when_game_loop_entered = game.state().time;
 
-        // The 'real-life' time at which we enter the game loop.
+        // The \'real-life\' time at which we enter the game loop.
         let time_game_loop_entered = Instant::now();
 
         // The number of the frame. This is used to calculate the time of the next frame.
