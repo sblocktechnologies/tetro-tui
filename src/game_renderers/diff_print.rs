@@ -270,6 +270,11 @@ impl Renderer for DiffPrintRenderer {
         }
         let pieces = game.state().pieces_locked.iter().sum::<u32>();
         let gravity = game.state().fall_delay.as_hertz();
+        let pps = if game.state().time.as_secs_f64() > 0.0 {
+            f64::from(pieces) / game.state().time.as_secs_f64()
+        } else {
+            0.0
+        };
         // Screen: some titles.
         let modename_len = meta_data.title.len().max(14);
         let (endcond_title, endcond_value) = if let Some((c, _)) = game
@@ -321,7 +326,7 @@ impl Renderer for DiffPrintRenderer {
                 format!("                        <! . . . . . . . . . .!>              ", ),
                 format!(" Gravity: {:<14        }<! . . . . . . . . . .!>              ", fmt_hertz(gravity)),
                 format!(" {:<23                 }<! . . . . . . . . . .!>              ", if show_lockdelay { format!("Lock delay: {}ms",game.state().lock_delay.saturating_duration().as_millis()) } else { "".to_owned() }),
-                format!("                        <! . . . . . . . . . .!>              ", ),
+                format!(" PPS: {:<18               }<! . . . . . . . . . .!>              ", format!("{pps:.2}")),
                 format!("                        <! . . . . . . . . . .!>              ", ),
                 format!("                        <! . . . . . . . . . .!>              ", ),
                 format!("  KEYBINDS              <! . . . . . . . . . .!>              ", ),
@@ -347,7 +352,7 @@ impl Renderer for DiffPrintRenderer {
                 format!("                         |                    |{             }", if show_next { "-----next-----+" } else {"               "}),
                 format!(" Gravity: {:<15         }|                    |             {}", fmt_hertz(gravity), if show_next { " |" } else {"  "}),
                 format!(" {:<24                  }|                    |             {}", if show_lockdelay { format!("Lock delay: {}ms",game.state().lock_delay.saturating_duration().as_millis()) } else { "".to_owned() }, if show_next { " |" } else {"  "}),
-                format!("                         |                    |{             }", if show_next { "--------------+" } else {"               "}),
+                format!(" PPS: {:<19              }|                    |{             }", format!("{pps:.2}"), if show_next { "--------------+" } else {"               "}),
                 format!("                         |                    |               ", ),
                 format!("                         |                    |               ", ),
                 format!("  KEYBINDS               |                    |               ", ),
@@ -372,7 +377,7 @@ impl Renderer for DiffPrintRenderer {
                 format!("                         ║                    ║{             }", if show_next { "─────next─────┐" } else {"               "}),
                 format!(" Gravity: {:<15         }║                    ║             {}", fmt_hertz(gravity), if show_next { " │" } else {"  "}),
                 format!(" {:<24                  }║                    ║             {}", if show_lockdelay { format!("Lock delay: {}ms",game.state().lock_delay.saturating_duration().as_millis()) } else { "".to_owned() }, if show_next { " │" } else {"  "}),
-                format!("                         ║                    ║{             }", if show_next { "──────────────┘" } else {"               "}),
+                format!(" PPS: {:<20              }║                    ║{             }", format!("{pps:.2}"), if show_next { "──────────────┘" } else {"               "}),
                 format!("                         ║                    ║               ", ),
                 format!("                         ║                    ║               ", ),
                 format!("  KEYBINDS               ║                    ║               ", ),
