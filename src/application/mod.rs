@@ -689,6 +689,7 @@ pub struct Application<T: Write> {
     settings: Settings,
     scores_and_replays: ScoresAndReplays,
     game_saves: (usize, Vec<GameSave<UncompressedInputHistory>>),
+    start_mode: Option<String>,
 }
 
 impl<T: Write> Drop for Application<T> {
@@ -734,6 +735,7 @@ impl<T: Write> Application<T> {
         mut term: T,
         custom_start_seed: Option<u64>,
         custom_start_board: Option<String>,
+        start_mode: Option<String>,
     ) -> Self {
         // Console prologue: Initialization.
         // FIXME: Handle io::Error? If not, why not?
@@ -751,6 +753,7 @@ impl<T: Write> Application<T> {
             scores_and_replays: ScoresAndReplays::default(),
             game_saves: (0, Vec::new()),
             save_on_exit: SavefileGranularity::NoSavefile,
+            start_mode,
         };
 
         // Actually load in settings.
@@ -896,6 +899,16 @@ impl<T: Write> Application<T> {
 
     pub fn run(&mut self) -> io::Result<()> {
         let mut menu_stack = vec![Menu::Title];
+
+        // If --mode was specified, jump directly into the game.
+        if let Some(mode_str) = self.start_mode.take() {
+            if let Some(menu) = self.build_game_from_mode_str(&mode_str) {
+                menu_stack = vec![menu];
+            } else {
+                eprintln!("Unknown mode: {mode_str:?}. Available: 40lines, marathon, timetrial, master, puzzle, cheese, combo, custom");
+            }
+        }
+
         loop {
             // Retrieve active menu, stop application if stack is empty.
             let Some(menu) = menu_stack.last_mut() else {
@@ -962,5 +975,110 @@ impl<T: Write> Application<T> {
         }
 
         Ok(())
+    }
+
+    fn build_game_from_mode_str(&self, mode_str: &str) -> Option<Menu> {
+        use falling_tetromino_engine::InGameTime;
+
+        let GameplaySettings {
+            rotation_system,
+            tetromino_generator,
+            piece_preview_count,
+            delayed_auto_shift,
+            auto_repeat_rate,
+            soft_drop_factor,
+            line_clear_duration,
+            spawn_delay,
+            allow_prespawn_actions,
+        } = *self.settings.gameplay();
+
+        let mut builder = falling_tetromino_engine::Game::builder();
+        builder
+            .rotation_system(rotation_system)
+            .tetromino_generator(tetromino_generator)
+            .piece_preview_count(piece_preview_count)
+            .delayed_auto_shift(delayed_auto_shift)
+            .auto_repeat_rate(auto_repeat_rate)
+            .soft_drop_divisor(soft_drop_factor)
+            .line_clear_duration(line_clear_duration)
+            .spawn_delay(spawn_delay)
+            .allow_prespawn_actions(allow_prespawn_actions);
+
+        let preset = match mode_str.to_lowercase().as_str() {
+            "40lines" | "40-lines" | "sprint" => Some(game_mode_presets::forty_lines()),
+            "marathon" => Some(game_mode_presets::marathon()),
+            "timetrial" | "time-trial" | "time_trial" => Some(game_mode_presets::time_trial()),
+            "master" => Some(game_mode_presets::master()),
+            "puzzle" => Some(game_mode_presets::puzzle()),
+            "cheese" => Some(game_mode_presets::n_cheese(
+                self.settings.new_game.cheese_linelimit,
+                self.settings.new_game.cheese_tiles_per_line,
+                self.settings.new_game.cheese_fall_delay,
+            )),
+            "combo" => Some(game_mode_presets::n_combo(
+                self.settings.new_game.combo_linelimit,
+                self.settings.new_game.combo_startlayout,
+            )),
+            "custom" => {
+                let n = &self.settings.new_game;
+
+                builder.fall_delay_params(n.custom_fall_delay_params);
+                builder.end_conditions(match n.custom_win_condition {
+                    Some(stat) => vec![(stat, true)],
+                    None => vec![],
+                });
+
+                if !n.custom_fall_delay_params.is_constant() {
+                    builder.lock_delay_params(
+                        falling_tetromino_engine::DelayParameters::standard_lock(),
+                    );
+                }
+
+                if let Some(seed) = n.custom_seed {
+                    builder.seed(seed);
+                }
+
+                let mut game = if let Some(board) = &n.custom_board {
+                    builder.build_modded([
+                        game_mode_presets::game_modifiers::custom_start_board::modifier(board),
+                    ])
+                } else {
+                    builder.build()
+                };
+
+                let _v = game.update(InGameTime::ZERO, None);
+
+                let meta = GameMetaData {
+                    datetime: chrono::Utc::now().format("%Y-%m-%d_%H:%M").to_string(),
+                    title: "Custom".to_owned(),
+                    comparison_stat: (falling_tetromino_engine::Stat::PointsScored(0), false),
+                };
+
+                return Some(Menu::PlayGame {
+                    game: Box::new(game),
+                    game_input_history: UncompressedInputHistory::default(),
+                    game_meta_data: meta,
+                    game_renderer: Default::default(),
+                });
+            }
+            _ => None,
+        };
+
+        let (title, comparison_stat, build) = preset?;
+        let mut game = build(&builder);
+        let _v = game.update(InGameTime::ZERO, None);
+
+        let meta = GameMetaData {
+            datetime: chrono::Utc::now().format("%Y-%m-%d_%H:%M").to_string(),
+            title,
+            comparison_stat,
+        };
+
+        Some(Menu::PlayGame {
+            game: Box::new(game),
+            game_input_history: UncompressedInputHistory::default(),
+            game_meta_data: meta,
+            game_renderer: Default::default(),
+        })
     }
 }
