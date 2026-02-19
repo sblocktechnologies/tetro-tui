@@ -377,7 +377,7 @@ impl Renderer for DiffPrintRenderer {
                 format!("                         ║                    ║{             }", if show_next { "─────next─────┐" } else {"               "}),
                 format!(" Gravity: {:<15         }║                    ║             {}", fmt_hertz(gravity), if show_next { " │" } else {"  "}),
                 format!(" {:<24                  }║                    ║             {}", if show_lockdelay { format!("Lock delay: {}ms",game.state().lock_delay.saturating_duration().as_millis()) } else { "".to_owned() }, if show_next { " │" } else {"  "}),
-                format!(" PPS: {:<20              }║                    ║{             }", format!("{pps:.2}"), if show_next { "──────────────┘" } else {"               "}),
+                format!(" PPS: {:<19              }║                    ║{             }", format!("{pps:.2}"), if show_next { "──────────────┘" } else {"               "}),
                 format!("                         ║                    ║               ", ),
                 format!("                         ║                    ║               ", ),
                 format!("  KEYBINDS               ║                    ║               ", ),
