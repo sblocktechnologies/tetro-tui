@@ -32,6 +32,58 @@ impl<T: Write> Application<T> {
             fall_delay_reached,
             lock_delay_reached,
         } = past_game;
+
+        // Check if this is a personal best for the game mode.
+        let is_pb = result.is_ok() && {
+            let (cmp_stat, minimize) = &game_meta_data.comparison_stat;
+            let current_value = match cmp_stat {
+                falling_tetromino_engine::Stat::TimeElapsed(_) => time_elapsed.as_millis() as i64,
+                falling_tetromino_engine::Stat::PiecesLocked(_) => {
+                    pieces_locked.iter().sum::<u32>() as i64
+                }
+                falling_tetromino_engine::Stat::LinesCleared(_) => *lineclears as i64,
+                falling_tetromino_engine::Stat::PointsScored(_) => *points_scored as i64,
+            };
+
+            // Compare against all previous completed games of the same mode.
+            let prev_best = self
+                .scores_and_replays
+                .entries
+                .iter()
+                .filter(|(entry, _)| {
+                    entry.result.is_ok() && entry.game_meta_data.title == game_meta_data.title
+                })
+                .filter_map(|(entry, _)| {
+                    let val = match cmp_stat {
+                        falling_tetromino_engine::Stat::TimeElapsed(_) => {
+                            entry.time_elapsed.as_millis() as i64
+                        }
+                        falling_tetromino_engine::Stat::PiecesLocked(_) => {
+                            entry.pieces_locked.iter().sum::<u32>() as i64
+                        }
+                        falling_tetromino_engine::Stat::LinesCleared(_) => {
+                            entry.lineclears as i64
+                        }
+                        falling_tetromino_engine::Stat::PointsScored(_) => {
+                            entry.points_scored as i64
+                        }
+                    };
+                    Some(val)
+                })
+                .reduce(|best, val| if *minimize { best.min(val) } else { best.max(val) });
+
+            match prev_best {
+                None => true, // First completed game of this mode is always a PB.
+                Some(best) => {
+                    if *minimize {
+                        current_value <= best
+                    } else {
+                        current_value >= best
+                    }
+                }
+            }
+        };
+
         let selection = vec![
             Menu::NewGame,
             Menu::Settings,
@@ -57,7 +109,15 @@ impl<T: Write> Application<T> {
                         Err(cause) =>
                             format!("-- Game Over ({}) by: {cause:?} --", game_meta_data.title),
                     }
-                )))?
+                )))?;
+
+            if is_pb {
+                self.term
+                    .queue(MoveTo(x_main, y_main + y_selection + 1))?
+                    .queue(Print(format!("{:^w_main$}", "*** NEW PERSONAL BEST! ***")))?;
+            }
+
+            self.term
                 .queue(MoveTo(x_main, y_main + y_selection + 2))?
                 .queue(Print(format!("{:^w_main$}", "──────────────────────────")))?;
 
